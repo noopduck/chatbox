@@ -9,12 +9,15 @@ host = None
 port = None
 key = None
 
-if not "CHATBOX_SERVERHOST" in os.environ and not "CHATBOX_SERVERPORT" in os.environ:
+if not "CHATBOX_SERVERHOST" in os.environ:
     print("Remember to define the CHATBOX_SERVERHOST environment variable")
-    print("Remember to define the CHATBOX_SERVERPORT environment variable")
     exit(1)
 else:
     host = os.environ["CHATBOX_SERVERHOST"]
+if not "CHATBOX_SERVERPORT" in os.environ:
+    print("Remember to define the CHATBOX_SERVERPORT environment variable")
+    exit(1)
+else:
     port = os.environ["CHATBOX_SERVERPORT"]
 if not "CHATBOX_SERVERAPI_KEY" in os.environ:
     print("Proceeding without setting the CHATBOX_SERVERAPI_KEY")
@@ -23,6 +26,7 @@ else:
     key = os.environ["CHATBOX_SERVERAPI_KEY"]
 
 client = AsyncOpenAI(api_key=f"{key}", base_url=f"http://{host}:{port}")
+
 
 async def main():
     print("In order to quit the chatbox, type: quit and hit enter")
@@ -43,5 +47,6 @@ async def main():
             print(chunk.choices[0].delta.content or "", end="")
 
         print("\n")
+
 
 asyncio.run(main())
