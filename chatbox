@@ -1,0 +1,47 @@
+#!/bin/env python3
+
+import asyncio
+import os
+
+from openai import AsyncOpenAI
+
+host = None
+port = None
+key = None
+
+if not "CHATBOX_SERVERHOST" in os.environ and not "CHATBOX_SERVERPORT" in os.environ:
+    print("Remember to define the CHATBOX_SERVERHOST environment variable")
+    print("Remember to define the CHATBOX_SERVERPORT environment variable")
+    exit(1)
+else:
+    host = os.environ["CHATBOX_SERVERHOST"]
+    port = os.environ["CHATBOX_SERVERPORT"]
+if not "CHATBOX_SERVERAPI_KEY" in os.environ:
+    print("Proceeding without setting the CHATBOX_SERVERAPI_KEY")
+    key = "blank"
+else:
+    key = os.environ["CHATBOX_SERVERAPI_KEY"]
+
+client = AsyncOpenAI(api_key=f"{key}", base_url=f"http://{host}:{port}")
+
+async def main():
+    print("In order to quit the chatbox, type: quit and hit enter")
+
+    while True:
+        question = input("You: ")
+
+        if question == "quit":
+            exit(0)
+
+        stream = await client.chat.completions.create(
+            model="mistral",
+            messages=[{"role": "user", "content": question}],
+            stream=True,
+        )
+
+        async for chunk in stream:
+            print(chunk.choices[0].delta.content or "", end="")
+
+        print("\n")
+
+asyncio.run(main())
