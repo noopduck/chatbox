@@ -1,52 +1,83 @@
 #!/bin/env python3
 
+import argparse
 import asyncio
 import os
+import sys
 
 from openai import AsyncOpenAI
 
-host = None
-port = None
-key = None
 
-if not "CHATBOX_SERVERHOST" in os.environ:
-    print("Remember to define the CHATBOX_SERVERHOST environment variable")
-    exit(1)
-else:
-    host = os.environ["CHATBOX_SERVERHOST"]
-if not "CHATBOX_SERVERPORT" in os.environ:
-    print("Remember to define the CHATBOX_SERVERPORT environment variable")
-    exit(1)
-else:
-    port = os.environ["CHATBOX_SERVERPORT"]
-if not "CHATBOX_SERVERAPI_KEY" in os.environ:
-    print("Proceeding without setting the CHATBOX_SERVERAPI_KEY")
-    key = "blank"
-else:
-    key = os.environ["CHATBOX_SERVERAPI_KEY"]
+class Chatbox:
 
-client = AsyncOpenAI(api_key=f"{key}", base_url=f"http://{host}:{port}")
+    client = AsyncOpenAI(api_key="")
 
+    parser = argparse.ArgumentParser(prog="chatbox")
 
-async def main():
-    print("In order to quit the chatbox, type: quit and hit enter")
+    def __init__(self):
 
-    while True:
-        question = input("You: ")
+        self.parse_args()
+        self.args = self.parser.parse_args()
 
-        if question == "quit":
-            exit(0)
+        if not "CHATBOX_SERVERHOST" in os.environ:
+            print("Remember to define the CHATBOX_SERVERHOST environment variable")
+            exit(1)
+        else:
+            self.host = os.environ["CHATBOX_SERVERHOST"]
+        if not "CHATBOX_SERVERPORT" in os.environ:
+            print("Remember to define the CHATBOX_SERVERPORT environment variable")
+            exit(1)
+        else:
+            self.port = os.environ["CHATBOX_SERVERPORT"]
+        if not "CHATBOX_SERVERAPI_KEY" in os.environ:
+            print("Proceeding without setting the CHATBOX_SERVERAPI_KEY")
+            self.key = "blank"
+        else:
+            self.key = os.environ["CHATBOX_SERVERAPI_KEY"]
 
-        stream = await client.chat.completions.create(
-            model="mistral",
-            messages=[{"role": "user", "content": question}],
-            stream=True,
+        self.client = AsyncOpenAI(
+            api_key=f"{self.key}", base_url=f"http://{self.host}:{self.port}"
         )
 
-        async for chunk in stream:
-            print(chunk.choices[0].delta.content or "", end="")
+    def parse_args(self):
+        self.parser.add_argument("--stdin", action="store_true", default=False)
+        self.parser.add_argument("--suppress", action="store_true", default=False)
 
-        print("\n")
+    async def main(self):
+        print("In order to quit the chatbox, type: quit and hit enter")
+
+        do_stdin = True
+        while True:
+            stdin = ""
+            question = ""
+            if self.args.stdin and do_stdin:
+                for line in sys.stdin:
+                    if "quit" == line.rstrip():
+                        exit(0)
+                    stdin = line
+                    do_stdin = False
+
+            # Reopen stdin for /dev/tty
+            sys.stdin = open("/dev/tty")
+            if not self.args.suppress:
+                question = input("You: ")
+                if question == "quit":
+                    exit(0)
+
+            stream = await self.client.chat.completions.create(
+                model="mistral",
+                messages=[{"role": "user", "content": f"{stdin}{question}"}],
+                stream=True,
+            )
+
+            async for chunk in stream:
+                print(chunk.choices[0].delta.content or "", end="")
+
+            print("\n")
+
+            if self.args.suppress:
+                exit(0)
 
 
-asyncio.run(main())
+chatbox = Chatbox()
+asyncio.run(chatbox.main())
